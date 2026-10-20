@@ -27,7 +27,8 @@
  */
 
 /*
- * FIDO セキュリティキーによる署名 (sk-ssh-ed25519@openssh.com)
+ * FIDO セキュリティキーによる署名
+ * (sk-ssh-ed25519@openssh.com, sk-ecdsa-sha2-nistp256@openssh.com)
  *
  * 管理者権限のないプロセスは FIDO デバイスに直接アクセスできないため、
  * Windows WebAuthn API (webauthn.dll, Windows 10 1903 以降) を使う。
@@ -36,8 +37,8 @@
  * 署名データの形式は OpenSSH の PROTOCOL.u2f を参照。
  *   rpId       = 鍵の application (通常 "ssh:")
  *   clientData = 署名対象データ (WebAuthn API が SHA-256 したものを署名する)
- *   SSH の署名 = string "sk-ssh-ed25519@openssh.com"
- *                string signature
+ *   SSH の署名 = string 鍵の種類名
+ *                string signature (Ed25519 はそのまま、ECDSA は mpint r, mpint s)
  *                byte   flags
  *                uint32 counter
  */
@@ -48,6 +49,7 @@
 
 #include <process.h>
 #include <webauthn.h>
+#include <openssl/ecdsa.h>
 
 #define SSH_SK_USER_VERIFICATION_REQD	0x04
 
@@ -260,6 +262,54 @@ static HRESULT get_assertion(get_assertion_req_t *req)
 	return req->hr;
 }
 
+/*
+ * セキュリティキーが返した署名を SSH の形式で b に追加する
+ *   Ed25519: string signature (64 バイト)
+ *   ECDSA:   string (mpint r, mpint s)  ※WebAuthn は DER (ECDSA-Sig-Value) で返す
+ */
+static int put_signature(buffer_t *b, ssh_keytype type, const u_char *sig, DWORD siglen)
+{
+	switch (type) {
+	case KEY_ED25519_SK:
+		if (siglen != crypto_sign_ed25519_BYTES) {
+			logprintf(LOG_LEVEL_ERROR, "%s: unexpected Ed25519 signature length (%lu bytes)",
+			          __FUNCTION__, siglen);
+			return SSH_ERR_INVALID_FORMAT;
+		}
+		return buffer_put_string(b, sig, siglen) == 0 ? 0 : SSH_ERR_ALLOC_FAIL;
+
+	case KEY_ECDSA256_SK:
+	{
+		const u_char *p = sig;
+		ECDSA_SIG *esig;
+		const BIGNUM *sig_r, *sig_s;
+		buffer_t *inner;
+		int r = SSH_ERR_ALLOC_FAIL;
+
+		esig = d2i_ECDSA_SIG(NULL, &p, siglen);
+		if (esig == NULL) {
+			logprintf(LOG_LEVEL_ERROR, "%s: cannot decode ECDSA signature (%lu bytes)",
+			          __FUNCTION__, siglen);
+			return SSH_ERR_INVALID_FORMAT;
+		}
+		ECDSA_SIG_get0(esig, &sig_r, &sig_s);
+		inner = buffer_init();
+		if (inner != NULL &&
+		    buffer_put_bignum2(inner, sig_r) == 0 &&
+		    buffer_put_bignum2(inner, sig_s) == 0 &&
+		    buffer_put_string(b, buffer_ptr(inner), buffer_len(inner)) == 0) {
+			r = 0;
+		}
+		buffer_free(inner);
+		ECDSA_SIG_free(esig);
+		return r;
+	}
+
+	default:
+		return SSH_ERR_KEY_TYPE_UNKNOWN;
+	}
+}
+
 static wchar_t *utf8_to_wide(const char *s)
 {
 	int len = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
@@ -296,7 +346,7 @@ int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **
 	u_int counter;
 	int len, r = SSH_ERR_INTERNAL_ERROR;
 
-	if (key == NULL || key->type != KEY_ED25519_SK ||
+	if (key == NULL || (key->type != KEY_ED25519_SK && key->type != KEY_ECDSA256_SK) ||
 	    key->sk_application == NULL || key->sk_key_handle == NULL) {
 		return SSH_ERR_INVALID_ARGUMENT;
 	}
@@ -381,10 +431,9 @@ int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **
 		goto out;
 	}
 
-	if (assertion->cbAuthenticatorData < AUTHDATA_MIN_LEN ||
-	    assertion->cbSignature != crypto_sign_ed25519_BYTES) {
-		logprintf(LOG_LEVEL_ERROR, "%s: unexpected assertion (authenticator data %lu bytes, signature %lu bytes)",
-		          __FUNCTION__, assertion->cbAuthenticatorData, assertion->cbSignature);
+	if (assertion->cbAuthenticatorData < AUTHDATA_MIN_LEN) {
+		logprintf(LOG_LEVEL_ERROR, "%s: authenticator data too short (%lu bytes)",
+		          __FUNCTION__, assertion->cbAuthenticatorData);
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
@@ -400,9 +449,14 @@ int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if (buffer_put_cstring(b, get_ssh2_hostkey_type_name(KEY_ED25519_SK)) != 0 ||
-	    buffer_put_string(b, assertion->pbSignature, assertion->cbSignature) != 0 ||
-	    buffer_put_char(b, flags) != 0 ||
+	if (buffer_put_cstring(b, get_ssh2_hostkey_type_name(key->type)) != 0) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	if ((r = put_signature(b, key->type, assertion->pbSignature, assertion->cbSignature)) != 0) {
+		goto out;
+	}
+	if (buffer_put_char(b, flags) != 0 ||
 	    buffer_put_int(b, counter) != 0) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;

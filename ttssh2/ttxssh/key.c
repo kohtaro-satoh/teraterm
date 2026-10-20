@@ -663,6 +663,27 @@ unsigned char *duplicate_ED25519_PK(unsigned char *src)
 	return (ptr);
 }
 
+// セキュリティキー(sk)の鍵に固有の情報をコピーする
+static BOOL key_copy_sk(Key *dest, Key *src)
+{
+	dest->sk_flags = src->sk_flags;
+	if (src->sk_application != NULL) {
+		dest->sk_application = _strdup(src->sk_application);
+		if (dest->sk_application == NULL) {
+			return FALSE;
+		}
+	}
+	if (src->sk_key_handle != NULL) {
+		dest->sk_key_handle = malloc(src->sk_key_handle_len);
+		if (dest->sk_key_handle == NULL) {
+			return FALSE;
+		}
+		memcpy(dest->sk_key_handle, src->sk_key_handle, src->sk_key_handle_len);
+		dest->sk_key_handle_len = src->sk_key_handle_len;
+	}
+	return TRUE;
+}
+
 BOOL key_copy(Key *dest, Key *src)
 {
 	key_init(dest);
@@ -694,17 +715,11 @@ BOOL key_copy(Key *dest, Key *src)
 	case KEY_ED25519_SK:
 		dest->type = src->type;
 		dest->ed25519_pk = duplicate_ED25519_PK(src->ed25519_pk);
-		dest->sk_application = _strdup(src->sk_application);
-		dest->sk_flags = src->sk_flags;
-		if (src->sk_key_handle != NULL) {
-			dest->sk_key_handle = malloc(src->sk_key_handle_len);
-			if (dest->sk_key_handle == NULL) {
-				return FALSE;
-			}
-			memcpy(dest->sk_key_handle, src->sk_key_handle, src->sk_key_handle_len);
-			dest->sk_key_handle_len = src->sk_key_handle_len;
-		}
-		break;
+		return key_copy_sk(dest, src);
+	case KEY_ECDSA256_SK:
+		dest->type = src->type;
+		dest->ecdsa = EC_KEY_dup(src->ecdsa);
+		return key_copy_sk(dest, src);
 	default:
 		return FALSE;
 	}
@@ -745,6 +760,7 @@ char* key_fingerprint_raw(Key *k, digest_algorithm hash_alg, int *dgst_raw_lengt
 	case KEY_ECDSA521:
 	case KEY_ED25519:
 	case KEY_ED25519_SK:
+	case KEY_ECDSA256_SK:
 		if (key_to_blob(k, &blob, &len) != 0) {
 			return retval;
 		}
@@ -797,6 +813,8 @@ ssh_key_type(ssh_keytype type)
 		return "ED25519";
 	case KEY_ED25519_SK:
 		return "ED25519-SK";
+	case KEY_ECDSA256_SK:
+		return "ECDSA-SK";
 	}
 	return "unknown";
 }
@@ -826,6 +844,8 @@ key_size(const Key *k)
 	case KEY_ED25519:
 	case KEY_ED25519_SK:
 		return 256;	/* XXX */
+	case KEY_ECDSA256_SK:
+		return 256;
 	}
 	return 0;
 }
@@ -1074,6 +1094,7 @@ static void key_add_private(Key *k)
 
 		case KEY_ED25519:
 		case KEY_ED25519_SK:
+		case KEY_ECDSA256_SK:
 			/* no need to prealloc */
 			break;
 
@@ -1180,6 +1201,7 @@ Key *key_new(int type)
 
 		case KEY_ED25519:
 		case KEY_ED25519_SK:
+		case KEY_ECDSA256_SK:
 			/* no need to prealloc */
 			break;
 
@@ -1356,6 +1378,16 @@ int key_to_blob(Key *key, char **blobp, int *lenp)
 	case KEY_ED25519_SK:
 		if ((ret = buffer_put_cstring(b, sshname)) != 0 ||
 		    (ret = buffer_put_string(b, key->ed25519_pk, ED25519_PK_SZ)) != 0 ||
+		    (ret = buffer_put_cstring(b, key->sk_application)) != 0) {
+			goto error;
+		}
+		break;
+	case KEY_ECDSA256_SK:
+		tmp = curve_keytype_to_name(KEY_ECDSA256);
+		if ((ret = buffer_put_cstring(b, sshname)) != 0 ||
+		    (ret = buffer_put_cstring(b, tmp)) != 0 ||
+		    (ret = buffer_put_ec(b, EC_KEY_get0_public_key(key->ecdsa),
+		                            EC_KEY_get0_group(key->ecdsa))) != 0 ||
 		    (ret = buffer_put_cstring(b, key->sk_application)) != 0) {
 			goto error;
 		}
@@ -1541,6 +1573,38 @@ Key *key_from_blob(char *data, int blen)
 		hostkey->type = type;
 		hostkey->ed25519_pk = pk;
 		pk = NULL;
+		break;
+
+	case KEY_ECDSA256_SK:
+		if (buffer_get_string(b, &curve, NULL) != 0)
+			goto error;
+		if (key_curve_name_to_keytype(curve) != KEY_ECDSA256) {
+			goto error;
+		}
+
+		ecdsa = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		if (ecdsa == NULL) {
+			goto error;
+		}
+		q = EC_POINT_new(EC_KEY_get0_group(ecdsa));
+		if (q == NULL) {
+			goto error;
+		}
+		if (buffer_get_ec(b, q, EC_KEY_get0_group(ecdsa)) != 0) {
+			goto error;
+		}
+		if (key_ec_validate_public(EC_KEY_get0_group(ecdsa), q) == -1) {
+			goto error;
+		}
+		if (EC_KEY_set_public_key(ecdsa, q) != 1) {
+			goto error;
+		}
+		if (buffer_get_cstring(b, &hostkey->sk_application, NULL) != 0) {
+			goto error;
+		}
+
+		hostkey->type = type;
+		hostkey->ecdsa = ecdsa;
 		break;
 
 	default: // unknown key
@@ -1800,6 +1864,7 @@ BOOL generate_SSH2_keysign(Key *keypair, char **sigptr, int *siglen, char *data,
 		break;
 
 	case KEY_ED25519_SK:
+	case KEY_ECDSA256_SK:
 		// 署名はセキュリティキーが行う
 		ret = sk_webauthn_sign(keypair, hwnd, data, datalen, sigptr, siglen);
 		if (ret != 0)
@@ -1885,6 +1950,17 @@ int get_SSH2_publickey_blob(PTInstVar pvar, buffer_t **blobptr, int *bloblen)
 		if ((ret = buffer_put_cstring(msg, s)) != 0 ||
 			(ret = buffer_put_string(msg, keypair->ed25519_pk, ED25519_PK_SZ)) != 0 ||
 			(ret = buffer_put_cstring(msg, keypair->sk_application)) != 0) {
+			goto out;
+		}
+		break;
+	case KEY_ECDSA256_SK:
+		s = get_ssh2_hostkey_type_name_from_key(keypair);
+		tmp = curve_keytype_to_name(KEY_ECDSA256);
+		if ((ret = buffer_put_cstring(msg, s)) != 0 ||
+		    (ret = buffer_put_cstring(msg, tmp)) != 0 ||
+		    (ret = buffer_put_ec(msg, EC_KEY_get0_public_key(keypair->ecdsa),
+		                              EC_KEY_get0_group(keypair->ecdsa))) != 0 ||
+		    (ret = buffer_put_cstring(msg, keypair->sk_application)) != 0) {
 			goto out;
 		}
 		break;
@@ -2175,6 +2251,48 @@ ecdsa_error:
 			if (pklen != ED25519_PK_SZ)
 				goto error;
 			if (k->sk_key_handle_len == 0)
+				goto error;
+			}
+			break;
+
+		case KEY_ECDSA256_SK:
+			{
+			int success = 0;
+			char *curve = NULL;
+			u_char *reserved = NULL;
+			EC_POINT *q = NULL;
+
+			// 秘密鍵はセキュリティキーの中にあり、ファイルには key handle だけがある
+			if (buffer_get_string(blob, &curve, NULL) != 0)
+				goto ecdsa_sk_error;
+			if (key_curve_name_to_keytype(curve) != KEY_ECDSA256)
+				goto ecdsa_sk_error;
+			if ((k->ecdsa = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1)) == NULL)
+				goto ecdsa_sk_error;
+			if ((q = EC_POINT_new(EC_KEY_get0_group(k->ecdsa))) == NULL)
+				goto ecdsa_sk_error;
+			if (buffer_get_ec(blob, q, EC_KEY_get0_group(k->ecdsa)) != 0)
+				goto ecdsa_sk_error;
+			if (key_ec_validate_public(EC_KEY_get0_group(k->ecdsa), q) != 0)
+				goto ecdsa_sk_error;
+			if (EC_KEY_set_public_key(k->ecdsa, q) != 1)
+				goto ecdsa_sk_error;
+			if (buffer_get_cstring(blob, &k->sk_application, NULL) != 0 ||
+			    buffer_get_char(blob, &k->sk_flags) != 0 ||
+			    buffer_get_string(blob, &k->sk_key_handle, &k->sk_key_handle_len) != 0 ||
+			    buffer_get_string(blob, &reserved, NULL) != 0)
+				goto ecdsa_sk_error;
+			if (k->sk_key_handle_len == 0)
+				goto ecdsa_sk_error;
+
+			success = 1;
+
+ecdsa_sk_error:
+			free(curve);
+			free(reserved);
+			if (q)
+				EC_POINT_free(q);
+			if (success == 0)
 				goto error;
 			}
 			break;

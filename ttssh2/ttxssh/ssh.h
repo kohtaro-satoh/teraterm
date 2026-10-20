@@ -359,7 +359,8 @@ typedef struct Key {
 	unsigned char *ed25519_sk;
 	unsigned char *ed25519_pk;
 	int bcrypt_kdf;
-	// SSH2 ED25519-SK (FIDO security key, ed25519_pk holds the public key)
+	// SSH2 ED25519-SK / ECDSA-SK (FIDO security key)
+	// 公開鍵は ED25519-SK なら ed25519_pk、ECDSA-SK なら ecdsa に入る
 	char *sk_application;
 	unsigned char *sk_key_handle;
 	size_t sk_key_handle_len;
