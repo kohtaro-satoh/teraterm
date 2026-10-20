@@ -4420,12 +4420,22 @@
 
 <h3 id="ttssh_3.8.0">YYYY.MM.DD (Ver 3.8.0 not released yet)</h3>
 <ul class="history">
-  <!--li>変更
+  <li>変更
     <ul>
       <li>
+        FIDO セキュリティキーの鍵 (OpenSSH で作成した sk-ssh-ed25519@openssh.com, sk-ecdsa-sha2-nistp256@openssh.com 鍵) による公開鍵認証に対応した。
+        署名は Windows の WebAuthn API で行うため、管理者権限なしで USB または NFC でセキュリティキーを使用できる。
+        Windows 10 バージョン 1903 以降が必要。
+        (<a href="https://github.com/TeraTermProject/teraterm/issues/900" target="_blank">issue #900</a>)
+      </li>
+      <li>
+        セキュリティキーの案内に直接進むかどうかを指定する
+        <a href="../setup/teraterm-ssh.html#SecurityKeyHint">SecurityKeyHint</a> 設定と
+        <a href="../commandline/ttssh.html#ssh-skhint">/ssh-skhint=</a> コマンドラインオプションを追加した。
+        (<a href="https://github.com/TeraTermProject/teraterm/issues/900" target="_blank">issue #900</a>)
       </li>
     </ul>
-  </li-->
+  </li>
 
   <!--li>バグ修正
     <ul>

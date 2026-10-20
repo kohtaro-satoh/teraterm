@@ -63,7 +63,8 @@
       <li>If you want to use Password authentication, then make sure that [Use plain password to log in] is checked and type in username and password. If they are correct, you can login.<br>
           NOTE: The password can not be sent as plain text like TELNET protocol because the SSH packet including the password data is encrypted.</li>
       <li>When using public key authentication, check [RSA/DSA/ECDSA/ED25519 key to log in] (second from the top line) and click [Private key file:] to specify Private key file. Then type in username and Private key pass phrase.<br>
-          Note: TTSSH 2.63(Tera Term 4.76) later can support the PuTTY format and SECSH(ssh.com) format of the SSH2 private key.</li>
+          Note: TTSSH 2.63(Tera Term 4.76) later can support the PuTTY format and SECSH(ssh.com) format of the SSH2 private key.<br>
+          Note: On Windows 10 version 1903 or later, private keys for FIDO security keys created by OpenSSH (sk-ssh-ed25519@openssh.com, sk-ecdsa-sha2-nistp256@openssh.com) can also be used. When signing, Windows shows a dialog; touch the security key or hold it over an NFC reader (<a href="../setup/teraterm-ssh.html#SecurityKeyHint">dialog setting</a>).</li>
       <li>When the keyboard-interactive authentication is used, check the [Use keyboard-interactive to log in] and input your user name.<br>
           Next, the dialog with the server prompt and string is shown and input your password.</li>
       <li>When the Pageant is used, check the [Use Pageant] and input your user name.</li>

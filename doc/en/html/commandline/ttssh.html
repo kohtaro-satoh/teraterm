@@ -108,6 +108,16 @@ You can use the following command line parameters on TTSSH.
     '/auth=&lt;mode&gt;' means only authentication method
   </dd>
 
+  <dt id="ssh-skhint">/ssh-skhint=&lt;hint&gt;</dt>
+  <dd>
+    specify how Windows shows the dialog when signing with a FIDO security key
+      <ul>
+        <li><span class="syntax">security-key</span> go directly to the security key prompt.</li>
+        <li><span class="syntax">(empty)</span> show the Windows default dialog, which asks to choose an authenticator first.</li>
+      </ul>
+    This option overrides the <a href="../setup/teraterm-ssh.html#SecurityKeyHint">SecurityKeyHint</a> entry of the setup file.
+  </dd>
+
   <dt id="ssh-l">/ssh-L[&lt;listen_addr&gt;:]&lt;port1&gt;:&lt;host&gt;:&lt;port2&gt;[,[&lt;listen_addr&gt;:]&lt;port1&gt;:&lt;host&gt;:&lt;port2&gt;[,...]]</dt>
   <dd>port-forwarding from local listen-address(&lt;listen_addr&gt;) port(&lt;port1&gt;) to remote side host(&lt;host&gt;) port(&lt;port2&gt;)<br>
       if &lt;listen_addr&gt; is omitted, it listens at localhost.</dd>

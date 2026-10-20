@@ -4412,12 +4412,23 @@ SYNOPSIS:
 
 <h3 id="ttssh_3.8.0">YYYY.MM.DD (Ver 3.8.0 not released yet)</h3>
 <ul class="history">
-  <!--li>Changes
+  <li>Changes
     <ul>
       <li>
+        Added support for public key authentication with FIDO security keys
+        (sk-ssh-ed25519@openssh.com and sk-ecdsa-sha2-nistp256@openssh.com keys created by OpenSSH).
+        Signing is done with the Windows WebAuthn API, so a security key can be used over USB or NFC without administrator privileges.
+        Windows 10 version 1903 or later is required.
+        (<a href="https://github.com/TeraTermProject/teraterm/issues/900" target="_blank">issue #900</a>)
+      </li>
+      <li>
+        Added the <a href="../setup/teraterm-ssh.html#SecurityKeyHint">SecurityKeyHint</a> setting and
+        the <a href="../commandline/ttssh.html#ssh-skhint">/ssh-skhint=</a> command line option
+        to choose whether to go directly to the security key prompt.
+        (<a href="https://github.com/TeraTermProject/teraterm/issues/900" target="_blank">issue #900</a>)
       </li>
     </ul>
-  </li-->
+  </li>
 
   <!--li>Bug fixes
     <ul>

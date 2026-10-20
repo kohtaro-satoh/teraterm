@@ -229,6 +229,38 @@ RSAPubkeySignAlgorithmOrder=3210
 </pre>
 
 
+<h1 id="SecurityKeyHint">FIDO セキュリティキーで署名するときのダイアログ</h1>
+
+<p>
+FIDO セキュリティキーの鍵 (sk-ssh-ed25519@openssh.com, sk-ecdsa-sha2-nistp256@openssh.com) で公開鍵認証を行うとき、TTSSH は Windows の WebAuthn API で署名を行います。このとき Windows が、セキュリティキーへのタッチや NFC リーダーへのかざしを求めるダイアログを表示します。<br />
+標準ではセキュリティキーの案内に直接進みます。最初にスマートフォンやセキュリティキーなどの認証器を選択させる Windows 標準のダイアログを表示する場合は、設定ファイルの [TTSSH] セクションの SecurityKeyHint 行を、以下のように変更して下さい。
+</p>
+
+<pre>
+SecurityKeyHint=
+</pre>
+
+<table>
+<thead>
+  <tr> <th>値</th> <th>動作</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>security-key</td> <td>セキュリティキーの案内に直接進む</td> </tr>
+  <tr> <td>(空)</td>         <td>Windows 標準のダイアログを表示する (最初に認証器を選択する)</td> </tr>
+</tbody>
+</table>
+
+<p>
+OpenSSH で作成した FIDO セキュリティキーの鍵は、作成したセキュリティキーでしか使えないため、標準では認証器の選択を省略しています。<br />
+この設定は <a href="../commandline/ttssh.html#ssh-skhint">/ssh-skhint コマンドラインオプション</a> で上書きされます。
+</p>
+
+<pre>
+省略時:
+SecurityKeyHint=security-key
+</pre>
+
+
 <h1 id="X11Display">X11転送での転送先ディスプレイ指定</h1>
 
 <p>

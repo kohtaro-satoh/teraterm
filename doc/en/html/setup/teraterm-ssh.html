@@ -238,6 +238,38 @@ RSAPubkeySignAlgorithmOrder=3210
 </pre>
 
 
+<h1 id="SecurityKeyHint">Dialog for signing with a FIDO security key</h1>
+
+<p>
+When public key authentication uses a FIDO security key (sk-ssh-ed25519@openssh.com or sk-ecdsa-sha2-nistp256@openssh.com key), TTSSH signs with the Windows WebAuthn API, and Windows shows a dialog asking you to touch the security key or hold it over an NFC reader.<br />
+By default, TTSSH goes directly to the security key prompt. To show the Windows default dialog, which asks you to choose an authenticator such as a phone or a security key first, change the SecurityKeyHint entry of [TTSSH] section in the following:
+</p>
+
+<pre>
+SecurityKeyHint=
+</pre>
+
+<table>
+<thead>
+  <tr> <th>Value</th> <th>Action</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>security-key</td> <td>Go directly to the security key prompt</td> </tr>
+  <tr> <td>(empty)</td>      <td>Show the Windows default dialog (choose an authenticator first)</td> </tr>
+</tbody>
+</table>
+
+<p>
+SSH keys for FIDO security keys created by OpenSSH can only be used with the security key on which they were created, so the default skips the authenticator selection.<br />
+This configuration is overwritten with <a href="../commandline/ttssh.html#ssh-skhint">/ssh-skhint command line option</a>.
+</p>
+
+<pre>
+Default:
+SecurityKeyHint=security-key
+</pre>
+
+
 <h1 id="X11Display">Destination display for X11 transfer</h1>
 
 <p>
