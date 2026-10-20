@@ -409,6 +409,7 @@
     <ClCompile Include="pkt.c" />
     <ClCompile Include="poly1305.c" />
     <ClCompile Include="sftp.c" />
+    <ClCompile Include="sk-webauthn.c" />
     <ClCompile Include="smult_curve25519_ref.c" />
     <ClCompile Include="sntrup761.c" />
     <ClCompile Include="ssh.c" />
@@ -457,6 +458,7 @@
     <ClInclude Include="poly1305.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="sftp.h" />
+    <ClInclude Include="sk-webauthn.h" />
     <ClInclude Include="ssh.h" />
     <ClInclude Include="ssherr.h" />
     <ClInclude Include="ttxssh-version.h" />

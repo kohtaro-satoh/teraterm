@@ -49,6 +49,7 @@ static const struct ssh2_host_key_t ssh2_host_key[] = {
 	{KEY_ALGO_ED25519,  KEY_ED25519,  NID_sha512, SSH_AGENT_SIGN_DEFAULT, "ssh-ed25519"},         // RDC8709
 	{KEY_ALGO_RSASHA256,KEY_RSA,      NID_sha256, SSH_AGENT_RSA_SHA2_256, "rsa-sha2-256"},        // RFC8332
 	{KEY_ALGO_RSASHA512,KEY_RSA,      NID_sha512, SSH_AGENT_RSA_SHA2_512, "rsa-sha2-512"},        // RFC8332
+	{KEY_ALGO_ED25519_SK,KEY_ED25519_SK,NID_sha256,SSH_AGENT_SIGN_DEFAULT, "sk-ssh-ed25519@openssh.com"}, // OpenSSH PROTOCOL.u2f
 	{KEY_ALGO_UNSPEC,   KEY_UNSPEC,   NID_undef,  SSH_AGENT_SIGN_DEFAULT, "ssh-unknown"},
 	{KEY_ALGO_NONE,     KEY_NONE,     NID_undef,  SSH_AGENT_SIGN_DEFAULT, NULL},
 };
@@ -73,6 +74,8 @@ ssh_keytype get_hostkey_type_from_name(char *name)
 		return KEY_ECDSA521;
 	} else if (strcmp(name, "ssh-ed25519") == 0) {
 		return KEY_ED25519;
+	} else if (strcmp(name, "sk-ssh-ed25519@openssh.com") == 0) {
+		return KEY_ED25519_SK;
 	}
 	return KEY_UNSPEC;
 }

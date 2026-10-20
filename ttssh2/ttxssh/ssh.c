@@ -7394,7 +7394,7 @@ BOOL do_SSH2_authrequest(PTInstVar pvar)
 		}
 
 		// 署名の作成
-		if (generate_SSH2_keysign(keypair, &signature, &siglen, buffer_ptr(signbuf), buffer_len(signbuf), keyalgo) == FALSE) {
+		if (generate_SSH2_keysign(keypair, &signature, &siglen, buffer_ptr(signbuf), buffer_len(signbuf), keyalgo, pvar->cv->HWin) == FALSE) {
 			buffer_free(blob);
 			buffer_free(signbuf);
 			goto error;

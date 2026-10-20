@@ -83,6 +83,8 @@ target_sources(
   resource.h
   sftp.c
   sftp.h
+  sk-webauthn.c
+  sk-webauthn.h
   smult_curve25519_ref.c
   sntrup761.c
   ssh.c

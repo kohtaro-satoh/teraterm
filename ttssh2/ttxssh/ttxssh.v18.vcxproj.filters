@@ -94,6 +94,9 @@
     <ClCompile Include="sftp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sk-webauthn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="smult_curve25519_ref.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -217,6 +220,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sftp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sk-webauthn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ssh.h">
