@@ -425,6 +425,10 @@ static void read_ssh_options(PTInstVar pvar, const wchar_t *fileName)
 
 	settings->MaxChannel = GetPrivateProfileInt("TTSSH", "MaxChannel", CHANNEL_MAX_DEFAULT, fileName);
 
+	// 項目がないときは security-key、空を書いたときは Windows 標準の選択画面
+	read_string_option(fileName, "SecurityKeyHint", "security-key",
+	                   settings->SecurityKeyHint, sizeof(settings->SecurityKeyHint));
+
 #ifdef _DEBUG
 	GetPrivateProfileStringW(L"TTSSH", L"KexKeyLogFile", L"", settings->KexKeyLogFile, _countof(settings->KexKeyLogFile), fileName);
 	if (settings->KexKeyLogFile[0] == 0) {
@@ -575,6 +579,9 @@ static void write_ssh_options(PTInstVar pvar, const wchar_t *fileName,
 
 	_itoa_s(settings->MaxChannel, buf, sizeof(buf), 10);
 	WritePrivateProfileString("TTSSH", "MaxChannel", buf, fileName);
+
+	WritePrivateProfileString("TTSSH", "SecurityKeyHint",
+	                          settings->SecurityKeyHint, fileName);
 
 #ifdef _DEBUG
 	WritePrivateProfileStringW(L"TTSSH", L"KexKeyLogFile", settings->KexKeyLogFile, fileName);
@@ -1584,6 +1591,12 @@ static void PASCAL TTXParseParam(wchar_t *param, PTTSet ts, PCHAR DDETopic)
 					else {
 						pvar->settings.ForwardAgentConfirm = 1;
 					}
+				} else if (_wcsnicmp(option + 4, L"-skhint=", 8) == 0) {
+					char *option12 = ToCharW(option + 12);
+					strncpy_s(pvar->settings.SecurityKeyHint,
+					          sizeof(pvar->settings.SecurityKeyHint),
+					          option12, _TRUNCATE);
+					free(option12);
 				} else if (wcscmp(option + 4, L"-a") == 0) {
 					pvar->settings.ForwardAgent = FALSE;
 				} else if (wcscmp(option + 4, L"-A") == 0) {

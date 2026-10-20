@@ -1679,7 +1679,7 @@ out:
 }
 
 
-BOOL generate_SSH2_keysign(Key *keypair, char **sigptr, int *siglen, char *data, int datalen, ssh_keyalgo keyalgo, HWND hwnd)
+BOOL generate_SSH2_keysign(Key *keypair, char **sigptr, int *siglen, char *data, int datalen, ssh_keyalgo keyalgo, HWND hwnd, const char *sk_hint)
 {
 	buffer_t *msg = NULL;
 	char *s;
@@ -1866,7 +1866,7 @@ BOOL generate_SSH2_keysign(Key *keypair, char **sigptr, int *siglen, char *data,
 	case KEY_ED25519_SK:
 	case KEY_ECDSA256_SK:
 		// 署名はセキュリティキーが行う
-		ret = sk_webauthn_sign(keypair, hwnd, data, datalen, sigptr, siglen);
+		ret = sk_webauthn_sign(keypair, hwnd, sk_hint, data, datalen, sigptr, siglen);
 		if (ret != 0)
 			goto error;
 		break;

@@ -326,7 +326,7 @@ static wchar_t *utf8_to_wide(const char *s)
 	return w;
 }
 
-int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **sigp, int *lenp)
+int sk_webauthn_sign(Key *key, HWND hwnd, const char *hint, const char *data, int datalen, char **sigp, int *lenp)
 {
 	WEBAUTHN_CLIENT_DATA client_data;
 	WEBAUTHN_CREDENTIAL cred;
@@ -344,11 +344,20 @@ int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **
 	const u_char *authdata;
 	u_char flags;
 	u_int counter;
+	BOOL direct_security_key;
 	int len, r = SSH_ERR_INTERNAL_ERROR;
 
 	if (key == NULL || (key->type != KEY_ED25519_SK && key->type != KEY_ECDSA256_SK) ||
 	    key->sk_application == NULL || key->sk_key_handle == NULL) {
 		return SSH_ERR_INVALID_ARGUMENT;
+	}
+
+	// sk 鍵は作成した認証器でしか使えず、Windows Hello やスマホでは
+	// OpenSSH の sk 鍵を作れないので、既定ではセキュリティキーに直接進む
+	direct_security_key = hint != NULL && _stricmp(hint, "security-key") == 0;
+	if (hint != NULL && hint[0] != '\0' && !direct_security_key) {
+		logprintf(LOG_LEVEL_WARNING, "%s: unknown SecurityKeyHint \"%s\", using the Windows default selection",
+		          __FUNCTION__, hint);
 	}
 	if (!load_webauthn()) {
 		return SSH_ERR_FEATURE_UNSUPPORTED;
@@ -391,24 +400,31 @@ int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **
 	opt.dwTimeoutMilliseconds = SK_WEBAUTHN_TIMEOUT_MS;
 	opt.CredentialList.cCredentials = 1;
 	opt.CredentialList.pCredentials = &cred;
-	opt.dwAuthenticatorAttachment = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM;
 	opt.dwUserVerificationRequirement = (key->sk_flags & SSH_SK_USER_VERIFICATION_REQD)
 		? WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED
 		: WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
-	if (opt.dwVersion >= WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_4) {
-		opt.pAllowCredentialList = &allow_list;  // CredentialList より優先される
+	if (direct_security_key) {
+		opt.dwAuthenticatorAttachment = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM;
+		if (opt.dwVersion >= WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_4) {
+			opt.pAllowCredentialList = &allow_list;  // CredentialList より優先される
+		}
+		if (opt.dwVersion >= WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_8) {
+			opt.cCredentialHints = 1;
+			opt.ppwszCredentialHints = hints;
+		}
 	}
-	if (opt.dwVersion >= WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_8) {
-		opt.cCredentialHints = 1;
-		opt.ppwszCredentialHints = hints;
+	else {
+		// Windows に任せる (最初に認証器の選択画面が出る)
+		opt.dwAuthenticatorAttachment = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_ANY;
 	}
 
 	if (hwnd == NULL) {
 		hwnd = GetForegroundWindow();
 	}
 
-	logprintf(LOG_LEVEL_VERBOSE, "%s: requesting assertion (api version %lu, options version %lu, application %s)",
-	          __FUNCTION__, api_version, opt.dwVersion, key->sk_application);
+	logprintf(LOG_LEVEL_VERBOSE, "%s: requesting assertion (api version %lu, options version %lu, application %s, hint \"%s\")",
+	          __FUNCTION__, api_version, opt.dwVersion, key->sk_application,
+	          direct_security_key ? "security-key" : "");
 	logprintf(LOG_LEVEL_VERBOSE, "%s: parent window %p, foreground window %p",
 	          __FUNCTION__, (void *)hwnd, (void *)GetForegroundWindow());
 

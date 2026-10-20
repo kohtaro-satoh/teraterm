@@ -33,7 +33,9 @@
 
 // FIDO セキュリティキー(sk-ssh-ed25519@openssh.com, sk-ecdsa-sha2-nistp256@openssh.com)の署名を
 // Windows WebAuthn API (webauthn.dll) で作成し、SSH の署名形式で返す。
+// hint: "security-key" ならセキュリティキーの案内に直接進む。
+//       NULL や "" なら Windows 標準の選択画面から。
 // 返値: 0=成功, それ以外は SSH_ERR_*
-int sk_webauthn_sign(Key *key, HWND hwnd, const char *data, int datalen, char **sigp, int *lenp);
+int sk_webauthn_sign(Key *key, HWND hwnd, const char *hint, const char *data, int datalen, char **sigp, int *lenp);
 
 #endif /* SK_WEBAUTHN_H */

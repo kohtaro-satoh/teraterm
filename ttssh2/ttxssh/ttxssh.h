@@ -221,6 +221,11 @@ typedef struct _TS_SSH {
 	char RSAPubkeySignAlgorithmOrder[RSA_PUBKEY_SIGN_ALGO_MAX+1];
 
 	int MaxChannel;
+
+	// FIDO セキュリティキーで署名するときに Windows へ渡すヒント
+	// "security-key" = セキュリティキーの案内に直接進む
+	// ""             = Windows 標準の選択画面から
+	char SecurityKeyHint[32];
 } TS_SSH;
 
 typedef struct _TInstVar {
